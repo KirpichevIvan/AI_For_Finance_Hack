@@ -92,6 +92,7 @@ def get_department(department_id):
 
 @swag_from({
     'tags': ['Departments'],
+    'consumes': ['application/x-www-form-urlencoded'],
     'parameters': [
         {
             'name': 'name',
@@ -154,6 +155,7 @@ def add_department():
 
 @swag_from({
     'tags': ['Departments'],
+    'consumes': ['application/x-www-form-urlencoded'],
     'parameters': [
         {
             'name': 'department_id',

@@ -196,6 +196,7 @@ example logic - if (redir) route(localhost/redir)
 """    
 @swag_from({
     'tags': ['Messages'],
+    'consumes': ['application/x-www-form-urlencoded', 'multipart/form-data'],
     'parameters': [
         {
             'name': 'user_id',
@@ -223,14 +224,7 @@ example logic - if (redir) route(localhost/redir)
             'in': 'formData',
             'type': 'string',
             'required': False,
-            'description': 'Текст сообщения (для type=0)'
-        },
-        {
-            'name': 'message',
-            'in': 'formData',
-            'type': 'file',
-            'required': False,
-            'description': 'Аудиофайл (для type=1)'
+            'description': 'Текст сообщения (для type=0). Для type=1 отправьте файл в поле message как multipart/form-data.'
         }
     ],
     'responses': {

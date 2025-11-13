@@ -92,6 +92,7 @@ def get_role(role_id):
 
 @swag_from({
     'tags': ['Roles'],
+    'consumes': ['application/x-www-form-urlencoded'],
     'parameters': [
         {
             'name': 'name',
@@ -154,6 +155,7 @@ def add_role():
 
 @swag_from({
     'tags': ['Roles'],
+    'consumes': ['application/x-www-form-urlencoded'],
     'parameters': [
         {
             'name': 'role_id',

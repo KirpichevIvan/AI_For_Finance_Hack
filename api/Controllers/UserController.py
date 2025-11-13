@@ -176,6 +176,7 @@ returns {
 """
 @swag_from({
     'tags': ['Users'],
+    'consumes': ['application/x-www-form-urlencoded', 'multipart/form-data'],
     'parameters': [
         {
             'name': 'login',
@@ -209,15 +210,19 @@ returns {
             'name': 'role_ids',
             'in': 'formData',
             'type': 'array',
+            'items': {'type': 'integer'},
+            'collectionFormat': 'multi',
             'required': False,
-            'description': 'ID ролей пользователя'
+            'description': 'ID ролей пользователя (несколько значений через role_ids=1&role_ids=2)'
         },
         {
             'name': 'department_ids',
             'in': 'formData',
             'type': 'array',
+            'items': {'type': 'integer'},
+            'collectionFormat': 'multi',
             'required': False,
-            'description': 'ID отделов пользователя'
+            'description': 'ID отделов пользователя (несколько значений через department_ids=1&department_ids=2)'
         }
     ],
     'responses': {
@@ -308,6 +313,7 @@ returns {
 """
 @swag_from({
     'tags': ['Users'],
+    'consumes': ['application/x-www-form-urlencoded', 'multipart/form-data'],
     'parameters': [
         {
             'name': 'item_id',
@@ -348,15 +354,19 @@ returns {
             'name': 'role_ids',
             'in': 'formData',
             'type': 'array',
+            'items': {'type': 'integer'},
+            'collectionFormat': 'multi',
             'required': False,
-            'description': 'Обновленный список ID ролей пользователя'
+            'description': 'Обновленный список ID ролей пользователя (несколько значений через role_ids=1&role_ids=2)'
         },
         {
             'name': 'department_ids',
             'in': 'formData',
             'type': 'array',
+            'items': {'type': 'integer'},
+            'collectionFormat': 'multi',
             'required': False,
-            'description': 'Обновленный список ID отделов пользователя'
+            'description': 'Обновленный список ID отделов пользователя (несколько значений через department_ids=1&department_ids=2)'
         }
     ],
     'responses': {
@@ -440,6 +450,7 @@ def update_user(item_id):
 
 @swag_from({
     'tags': ['Auth'],
+    'consumes': ['application/x-www-form-urlencoded'],
     'parameters': [
         {
             'name': 'login',
@@ -508,6 +519,7 @@ def login():
 
 @swag_from({
     'tags': ['Auth'],
+    'consumes': ['application/x-www-form-urlencoded'],
     'parameters': [
         {
             'name': 'refresh_token',
@@ -606,6 +618,7 @@ def refresh_token():
 
 @swag_from({
     'tags': ['Auth'],
+    'consumes': ['application/x-www-form-urlencoded'],
     'parameters': [
         {
             'name': 'login',

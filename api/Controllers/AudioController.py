@@ -8,6 +8,7 @@ def text_to_audio(text, path):
 
 @swag_from({
     'tags': ['Audio'],
+    'consumes': ['application/x-www-form-urlencoded'],
     'parameters': [
         {
             'name': 'text',
