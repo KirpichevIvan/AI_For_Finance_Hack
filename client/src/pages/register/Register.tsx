@@ -1,83 +1,86 @@
-import { useState } from 'react';
-import { useAuth } from '@/features/auth/context';
-import { Link } from 'react-router-dom';
+/* eslint-disable jsx-a11y/label-has-associated-control */
+import { useState } from "react"
+import { Link } from "react-router-dom"
+import { useAuth } from "@/features/auth/useAuth"
 
 export const Register = () => {
   const [formData, setFormData] = useState({
-    login: '',
-    firstName: '',
-    lastName: '',
-    password: '',
-  });
+    login: "",
+    firstName: "",
+    lastName: "",
+    password: "",
+  })
   const [errors, setErrors] = useState({
-    login: '',
-    firstName: '',
-    lastName: '',
-    password: '',
-  });
-  const { register, isLoading, error } = useAuth();
+    login: "",
+    firstName: "",
+    lastName: "",
+    password: "",
+  })
+  const { register, isLoading, error } = useAuth()
 
   const validateField = (name: string, value: string) => {
-    let errorMessage = '';
-    
+    let errorMessage = ""
+
     if (!value.trim()) {
-      errorMessage = 'This field is required';
+      errorMessage = "This field is required"
     } else {
       switch (name) {
-        case 'login':
+        case "login":
           if (value.length < 3) {
-            errorMessage = 'Login must be at least 3 characters';
+            errorMessage = "Login must be at least 3 characters"
           } else if (!/^[a-zA-Z0-9_]+$/.test(value)) {
-            errorMessage = 'Login can only contain letters, numbers, and underscores';
+            errorMessage = "Login can only contain letters, numbers, and underscores"
           }
-          break;
-        case 'firstName':
-        case 'lastName':
+          break
+        case "firstName":
+        case "lastName":
           if (value.length < 2) {
-            errorMessage = 'Name must be at least 2 characters';
+            errorMessage = "Name must be at least 2 characters"
           }
-          break;
-        case 'password':
+          break
+        case "password":
           if (value.length < 6) {
-            errorMessage = 'Password must be at least 6 characters';
+            errorMessage = "Password must be at least 6 characters"
           }
-          break;
+          break
+        default:
+          break
       }
     }
-    
-    return errorMessage;
-  };
+
+    return errorMessage
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    setErrors(prev => ({ ...prev, [name]: validateField(name, value) }));
-  };
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+    setErrors(prev => ({ ...prev, [name]: validateField(name, value) }))
+  }
 
   const isFormValid = () => {
     const newErrors = {
-      login: validateField('login', formData.login),
-      firstName: validateField('firstName', formData.firstName),
-      lastName: validateField('lastName', formData.lastName),
-      password: validateField('password', formData.password),
-    };
-    
-    setErrors(newErrors);
-    return Object.values(newErrors).every(error => error === '');
-  };
+      login: validateField("login", formData.login),
+      firstName: validateField("firstName", formData.firstName),
+      lastName: validateField("lastName", formData.lastName),
+      password: validateField("password", formData.password),
+    }
+
+    setErrors(newErrors)
+    return Object.values(newErrors).every(err => err === "")
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+    e.preventDefault()
+
     if (isFormValid()) {
       await register(
         formData.login,
         formData.firstName,
         formData.lastName,
         formData.password
-      );
+      )
     }
-  };
+  }
 
   return (
     <div className="flex min-h-screen flex-col justify-center px-6 py-12 lg:px-8">
@@ -92,12 +95,18 @@ export const Register = () => {
           {(error || Object.values(errors).some(e => e)) && (
             <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">
               {error && <p>{error}</p>}
-              {!error && Object.values(errors).filter(e => e).map((e, i) => <p key={i}>{e}</p>)}
+              {!error &&
+                Object.entries(errors)
+                  .filter(([, v]) => v)
+                  .map(([k, v]) => <p key={k}>{v}</p>)}
             </div>
           )}
-          
+
           <div>
-            <label htmlFor="login" className="block text-sm font-medium leading-6 text-gray-900">
+            <label
+              htmlFor="login"
+              className="block text-sm font-medium leading-6 text-gray-900"
+            >
               Login
             </label>
             <div className="mt-2">
@@ -111,12 +120,17 @@ export const Register = () => {
                 onChange={handleChange}
                 disabled={isLoading}
               />
-              {errors.login && <p className="mt-1 text-sm text-red-600">{errors.login}</p>}
+              {errors.login && (
+                <p className="mt-1 text-sm text-red-600">{errors.login}</p>
+              )}
             </div>
           </div>
 
           <div>
-            <label htmlFor="firstName" className="block text-sm font-medium leading-6 text-gray-900">
+            <label
+              htmlFor="firstName"
+              className="block text-sm font-medium leading-6 text-gray-900"
+            >
               First Name
             </label>
             <div className="mt-2">
@@ -130,12 +144,17 @@ export const Register = () => {
                 onChange={handleChange}
                 disabled={isLoading}
               />
-              {errors.firstName && <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>}
+              {errors.firstName && (
+                <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>
+              )}
             </div>
           </div>
 
           <div>
-            <label htmlFor="lastName" className="block text-sm font-medium leading-6 text-gray-900">
+            <label
+              htmlFor="lastName"
+              className="block text-sm font-medium leading-6 text-gray-900"
+            >
               Last Name
             </label>
             <div className="mt-2">
@@ -149,12 +168,17 @@ export const Register = () => {
                 onChange={handleChange}
                 disabled={isLoading}
               />
-              {errors.lastName && <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>}
+              {errors.lastName && (
+                <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>
+              )}
             </div>
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium leading-6 text-gray-900">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium leading-6 text-gray-900"
+            >
               Password
             </label>
             <div className="mt-2">
@@ -168,7 +192,9 @@ export const Register = () => {
                 onChange={handleChange}
                 disabled={isLoading}
               />
-              {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
+              {errors.password && (
+                <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+              )}
             </div>
           </div>
 
@@ -178,13 +204,13 @@ export const Register = () => {
               className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isLoading}
             >
-              {isLoading ? 'Creating account...' : 'Create account'}
+              {isLoading ? "Creating account..." : "Create account"}
             </button>
           </div>
         </form>
 
         <p className="mt-10 text-center text-sm text-gray-500">
-          Already have an account?{' '}
+          Already have an account?{" "}
           <Link
             to="/login"
             className="font-semibold leading-6 text-indigo-600 hover:text-indigo-500"
@@ -194,5 +220,5 @@ export const Register = () => {
         </p>
       </div>
     </div>
-  );
-};
+  )
+}

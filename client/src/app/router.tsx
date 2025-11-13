@@ -1,8 +1,8 @@
 import { createBrowserRouter } from "react-router-dom"
 import { TransactionHistory } from "@/features/transactionsHistory"
 import { MainPage } from "@/pages/main"
-import { Services } from "@/pages/services"
 import { Register } from "@/pages/register"
+import { Services } from "@/pages/services"
 
 export const router = createBrowserRouter([
   { path: "/", element: <MainPage /> },

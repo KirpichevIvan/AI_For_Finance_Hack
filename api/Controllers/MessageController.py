@@ -4,10 +4,59 @@ from sqlalchemy import desc
 from datetime import datetime
 import speech_recognition as sr
 import asyncio
-from g4f.client import Client
+import os
+import requests
+from pathlib import Path
 import re
 from flasgger import swag_from
 
+API_URL = "https://api.polza.ai/api/v1/chat/completions"
+
+
+def _load_env_from_file():
+    # Пытаемся загрузить ключ из ближайших .env без выхода за пределы родителей
+    here = Path(__file__).resolve()
+    parents = list(here.parents)
+
+    candidates = []
+    # Корень проекта в контейнере (обычно '/')
+    if len(parents) >= 2:
+        candidates.append(parents[1] / ".env")  # '/.env' после COPY . .
+    # Папка на уровень выше текущего файла (например, '/Controllers' -> '/.env')
+    if len(parents) >= 1:
+        candidates.append(parents[0].parent / ".env")
+    # Локально рядом с файлом (на случай альтернативной раскладки)
+    candidates.append(here.parent / ".env")
+
+    # Учитываем test/.env только если он достижим без выхода за границы
+    if len(parents) >= 2:
+        test_env = parents[1] / "test" / ".env"
+        candidates.append(test_env)
+
+    for env_path in candidates:
+        try:
+            if env_path.exists():
+                for raw in env_path.read_text(encoding="utf-8").splitlines():
+                    line = raw.strip()
+                    if not line or line.startswith('#') or '=' not in line:
+                        continue
+                    k, v = line.split('=', 1)
+                    k = k.strip()
+                    v = v.strip().strip('"').strip("'")
+                    os.environ.setdefault(k, v)
+        except Exception:
+            # Тихо игнорируем ошибки чтения .env
+            pass
+
+
+_load_env_from_file()
+
+
+def _auth_header() -> str:
+    token = os.getenv("POLZA_API_KEY", "").strip()
+    if not token:
+        raise RuntimeError("POLZA_API_KEY не задан (укажите в api/.env или test/.env)")
+    return token if token.lower().startswith("bearer ") else f"Bearer {token}"
 
 
 def audio_to_text(audio):
@@ -27,19 +76,34 @@ def audio_to_text(audio):
 
 
 def request_gpt_simple(text):
-    # Установка политики цикла событий для предотвращения предупреждения
+    # Установка политики цикла событий для предотвращения предупреждения (если где-то есть asyncio)
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
 
-    # Инициализация клиента
-    client = Client()
+    payload = {
+        "model": "qwen/qwen-turbo",
+        "messages": [
+            {"role": "system", "content": "Ты голосовой помощник банка. Отвечай кратко и по делу."},
+            {"role": "user", "content": f"Обращение: {text}"},
+        ],
+        "temperature": 0.7,
+        "max_tokens": 512,
+    }
 
-    # Отправка сообщения и получение ответа (без определения темы)
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user",
-                   "content": "Ты голосовой помощник банка. Ответь на обращение пользователя кратко и по делу. Обращение: " + text }],
-    )
-    return response.choices[0].message.content
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Authorization": _auth_header(),
+    }
+
+    resp = requests.post(API_URL, json=payload, headers=headers, timeout=30)
+    try:
+        resp.raise_for_status()
+    except requests.HTTPError as e:
+        # Пробрасываем текст ответа для диагностики в логи/клиент
+        raise requests.HTTPError(f"{e} | Body: {resp.text}") from e
+
+    data = resp.json()
+    return data.get("choices", [{}])[0].get("message", {}).get("content", "")
 
 """
 method=GET

@@ -11,6 +11,14 @@ from Controllers.DepartmentController import *
 app = Flask(__name__)
 CORS(app) # Включаем поддержку CORS для всего приложения
 
+# Возвращать JSON в UTF-8 без escape-последовательностей для не-ASCII
+app.config['JSON_AS_ASCII'] = False
+# Для Flask >= 2.2 используем JSON provider
+try:
+    app.json.ensure_ascii = False  # type: ignore[attr-defined]
+except Exception:
+    pass
+
 # Настройка подключения к базе данных MySQL
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://root:root@db:5432/dbuild'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
