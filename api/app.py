@@ -3,6 +3,7 @@ from flask_cors import CORS
 from flasgger import Swagger
 from database import db
 from Controllers.UserController import *
+from Controllers.DocumentController import *
 from Controllers.MessageController import *
 from Controllers.AudioController import *
 from Controllers.ChatController import *
@@ -71,6 +72,13 @@ db.init_app(app)
 
 with app.app_context():
     db.create_all()
+    
+# Роуты документов
+app.route('/api/documents/', methods=['GET'])(get_documents)
+app.route('/api/documents/<int:item_id>', methods=['GET'])(get_document)
+app.route('/api/documents/', methods=['POST'])(add_document)
+app.route('/api/documents/<int:item_id>', methods=['PUT'])(update_document)
+app.route('/api/documents/<int:item_id>', methods=['DELETE'])(delete_document)
 
 # Роуты пользователя
 app.route('/api/users/', methods=['GET'])(get_users)
