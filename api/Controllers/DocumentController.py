@@ -1,6 +1,6 @@
 from database import db  
+from flask import Blueprint
 from Models.Document import Document
-from flask import Blueprint, jsonify, request
 
 
 # ------------------ CRUD Functions ------------------
