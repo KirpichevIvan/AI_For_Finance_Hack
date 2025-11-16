@@ -103,7 +103,8 @@ app.route('/api/chats/<int:chat_id>', methods=['GET'])(get_chat)
 app.route('/api/chats/', methods=['POST'])(add_chat)
 app.route('/api/chats/<int:chat_id>', methods=['PUT'])(update_chat)
 app.route('/api/chats/<int:chat_id>', methods=['DELETE'])(delete_chat)
-
+app.route('/api/chats/<int:chat_id>/history', methods=['GET'])(get_chat_history)
+app.route('/api/chats/<int:chat_id>/last_messages', methods=['GET'])(get_last_messages)
 # -------------------------
 # Auth routes
 # -------------------------

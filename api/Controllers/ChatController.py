@@ -2,6 +2,9 @@ from flask import jsonify, request
 from flasgger import swag_from
 from Models.Chat import Chat, db
 from Models.User import User
+from Models.Message import Message
+
+
 
 
 # ---------------------------------------------
@@ -252,3 +255,158 @@ def delete_chat(chat_id):
     db.session.commit()
 
     return jsonify({'status': True, 'message': 'Chat deleted successfully'})
+
+@swag_from({
+    'tags': ['Chats'],
+    'parameters': [
+        {
+            'name': 'chat_id',
+            'in': 'path',
+            'type': 'integer',
+            'required': True,
+            'description': 'ID чата'
+        }
+    ],
+    'responses': {
+        200: {
+            'description': 'История сообщений чата',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'status': {'type': 'boolean'},
+                    'chat_id': {'type': 'integer'},
+                    'chat_name': {'type': 'string'},
+                    'messages': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'id': {'type': 'integer'},
+                                'message': {'type': 'string'},
+                                'time': {'type': 'string'},
+                                'type': {'type': 'boolean'},
+                                'sender': {'type': 'boolean'}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        404: {
+            'description': 'Чат не найден',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'status': {'type': 'boolean'},
+                    'message': {'type': 'string'}
+                }
+            }
+        }
+    }
+})
+def get_chat_history(chat_id):
+    chat = Chat.query.get(chat_id)
+    if not chat:
+        return jsonify({'status': False, 'message': 'Chat not found'}), 404
+
+    messages = [
+        {
+            'id': m.id,
+            'message': m.message,
+            'time': m.time.strftime('%Y-%m-%d %H:%M:%S'),
+            'type': m.type,
+            'sender': m.sender
+        } for m in chat.messages
+    ]
+
+    return jsonify({
+        'status': True,
+        'chat_id': chat.id,
+        'chat_name': chat.name,
+        'messages': messages
+    })
+
+@swag_from({
+    'tags': ['Chats'],
+    'parameters': [
+        {
+            'name': 'chat_id',
+            'in': 'path',
+            'type': 'integer',
+            'required': True,
+            'description': 'ID чата'
+        },
+        {
+            'name': 'limit',
+            'in': 'query',
+            'type': 'integer',
+            'required': False,
+            'description': 'Количество последних сообщений (по умолчанию 10)'
+        }
+    ],
+    'responses': {
+        200: {
+            'description': 'Последние сообщения чата',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'status': {'type': 'boolean'},
+                    'chat_id': {'type': 'integer'},
+                    'chat_name': {'type': 'string'},
+                    'messages': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'id': {'type': 'integer'},
+                                'message': {'type': 'string'},
+                                'time': {'type': 'string'},
+                                'type': {'type': 'boolean'},
+                                'sender': {'type': 'boolean'}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        404: {
+            'description': 'Чат не найден',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'status': {'type': 'boolean'},
+                    'message': {'type': 'string'}
+                }
+            }
+        }
+    }
+})
+def get_last_messages(chat_id):
+    chat = Chat.query.get(chat_id)
+    if not chat:
+        return jsonify({'status': False, 'message': 'Chat not found'}), 404
+
+    limit = request.args.get('limit', 10, type=int)  # по умолчанию 10 сообщений
+
+    # Берём последние n сообщений по времени
+    messages = Message.query.filter_by(chat_id=chat_id)\
+        .order_by(Message.time.desc())\
+        .limit(limit)\
+        .all()
+
+    messages_data = [
+        {
+            'id': m.id,
+            'message': m.message,
+            'time': m.time.strftime('%Y-%m-%d %H:%M:%S'),
+            'type': m.type,
+            'sender': m.sender
+        } for m in reversed(messages)  # переворачиваем, чтобы старые были первыми
+    ]
+
+    return jsonify({
+        'status': True,
+        'chat_id': chat.id,
+        'chat_name': chat.name,
+        'messages': messages_data
+    })

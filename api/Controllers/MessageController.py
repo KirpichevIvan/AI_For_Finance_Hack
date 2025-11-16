@@ -6,6 +6,7 @@ from sqlalchemy import desc
 from datetime import datetime
 import speech_recognition as sr
 import asyncio
+import json
 import os
 import requests
 from pathlib import Path
@@ -13,12 +14,34 @@ import re
 from openai import OpenAI
 from flasgger import swag_from
 from qdrant_client import QdrantClient
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, CrossEncoder
+
+
+# грузим один раз (можно вынести выше)
+rerank_model = CrossEncoder("BAAI/bge-reranker-base")
 rag_model = SentenceTransformer("all-MiniLM-L6-v2")
 
     
 
+def rerank_local(query: str, documents: list, top_k: int = 3):
+    """
+    Возвращает top_k документов после reranking'а.
+    documents — список строк (тексты документов)
+    """
+    if not query or not documents:
+        return documents[:top_k]
 
+    # готовим пары (query, doc)
+    pairs = [(query, doc) for doc in documents]
+
+    # получаем relevance score
+    scores = rerank_model.predict(pairs)
+
+    # сортируем по убыванию
+    ranked = sorted(zip(documents, scores), key=lambda x: x[1], reverse=True)
+
+    # возвращаем только документы
+    return [doc for doc, score in ranked[:top_k]]
 
 QDRANT_HOST = "qdrant"  
 QDRANT_PORT = 6333
@@ -69,6 +92,34 @@ def _load_env_from_file():
 
 
 _load_env_from_file()
+def get_last_chat_messages(chat_id, limit=6):
+    """
+    Возвращает последние 'limit' сообщений чата в формате для LLM.
+    Если чат не найден, возвращает пустой список.
+    """
+    chat = Chat.query.get(chat_id)
+    if not chat:
+        return []  # возвращаем пустой список, чтобы не ломать LLM-запрос
+
+    # Берём последние n сообщений по времени (сначала самые новые)
+    messages = (
+        Message.query.filter_by(chat_id=chat_id)
+        .order_by(Message.time.desc())
+        .limit(limit)
+        .all()
+    )
+
+    # Переворачиваем, чтобы старые шли первыми
+    messages.reverse()
+
+    # Формат для LLM
+    llm_messages = []
+    for m in messages:
+        if m.message and m.message.strip():  # игнорируем пустые сообщения
+            role = "assistant" if m.sender else "user"
+            llm_messages.append({"role": role, "content": m.message.strip()})
+
+    return llm_messages
 
 
 client = OpenAI(
@@ -99,43 +150,52 @@ def audio_to_text(audio):
 
     return text
 
-def query_rag_context(query: str, top_k=1) -> str:
-    """
-    Выполняет поиск по Qdrant и возвращает объединённый текст из наиболее релевантных чанков.
-    """
+def query_rag_context(query: str, top_k=5, return_list=False):
     try:
-        emb = rag_model.encode(query).tolist() 
+        emb = rag_model.encode(query).tolist()
         results = rag_client.search(
             collection_name=COLLECTION_NAME,
             query_vector=emb,
             limit=top_k
         )
-        context_chunks = [hit.payload.get("text", "") for hit in results]
-
-        return "\n".join(context_chunks).strip()
+        docs = [hit.payload.get("text", "") for hit in results]
+        return docs if return_list else "\n".join(docs).strip()
     except Exception as e:
-        return f"RAG context unavailable: {e}"
+        return [] if return_list else f"RAG context unavailable: {e}"
 
-def request_gpt_openrouter(text, previous_messages=None):
+
+def request_gpt_openrouter(text, previous_messages=None, description=None):
     """
     Sends a request to OpenRouter GPT-5.1 with reasoning support.
     previous_messages: list of dicts [{'role': 'user'/'assistant', 'content': str, 'reasoning_details': {...}}]
     """
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
     
-    context = query_rag_context(text)
-    
-    system_prompt = "Ты - финансовый помощник, который развернуто и грамотно отвечает на вопросы с использованием информации из предоставленного документа."
+    # сначала получаем много кандидатов
+    raw_context_docs = query_rag_context(text, top_k=10, return_list=True)
 
-    user_content = f'Контекст: {context}. Вопрос: {text}'
-    
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_content}
-    ]
+    # затем делаем rerank
+    top_docs = rerank_local(text, raw_context_docs, top_k=3)
 
+    # объединяем как строку для промпта
+    context = "\n\n".join(top_docs)
+
+    
+    system_prompt = f"Ты - документный помощник, который развернуто и грамотно отвечает на вопросы с использованием информации из предоставленного документа. Твоя задача помогать в рабочих задачах, вот основная информация про меня: {description}"
+
+    user_content = f'Контекст из документов: {context}. Вопрос: {text}'
+
+    messages = [{"role": "system", "content": system_prompt}]
+    
     if previous_messages:
-        messages.extend(previous_messages)
+        # Фильтруем пустые и неверные форматы
+        for m in previous_messages:
+            if m.get("content") and isinstance(m.get("content"), str):
+                messages.append({"role": m["role"], "content": m["content"]})
+
+    messages.append({"role": "user", "content": user_content})
+
+
 
     try:
         response = client.chat.completions.create(
@@ -370,6 +430,9 @@ def add_message():
     sender = False
     redir = ""
 
+
+
+    
     # Проверяем, что пользователь существует
     user = User.query.get(user_id)
     if not user:
@@ -386,6 +449,10 @@ def add_message():
         chat = Chat.query.get(chat_id)
         if not chat:
             return jsonify({'status': False, 'message': 'Chat not found'}), 404
+        
+    user_description = user.description
+        
+    previous_messages = get_last_chat_messages(chat_id, limit=6)
 
     # Обрабатываем аудио-сообщения
     if msg_type == '1':
@@ -398,8 +465,8 @@ def add_message():
         if not message_text:
             return jsonify({'status': False, 'message': 'Message text is required'}), 400
 
-    # Отправка запроса к GPT-5.1 через OpenRouter
-    assistant_msg_obj = request_gpt_openrouter(message_text)
+    # Отправка запроса
+    assistant_msg_obj = request_gpt_openrouter(message_text, previous_messages=previous_messages, description=user_description)
 
     # Извлечение данных из словаря
     assistant_msg = assistant_msg_obj.get("content", "")
@@ -436,5 +503,7 @@ def add_message():
         'redir': redir,
         'message_id': user_message.id,
         'chat_id': chat_id,
-        'reasoning_details': reasoning_details
+        'reasoning_details': reasoning_details,
+        'chat_history_context': json.dumps(previous_messages, ensure_ascii=False),
+        'description': user_description
     }), 201
